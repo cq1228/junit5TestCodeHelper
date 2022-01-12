@@ -23,7 +23,7 @@ import org.jetbrains.annotations.NotNull;
 /**
  * 单元测试生成的action
  *
- * @author youchen
+ * @author chenqiong
  */
 @Slf4j
 public class ClassCodeGenerateAction extends AnAction {
@@ -59,7 +59,6 @@ public class ClassCodeGenerateAction extends AnAction {
         }
 
     }
-
     /**
      * 只有java文件才能使用该功能
      *
