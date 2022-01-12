@@ -80,6 +80,23 @@ public class JsonFileGenerator {
      * @return
      */
     public static Object typeResolve(PsiType type, int level) {
+        if (level == 0) {
+            node = new ParentTree(type.getCanonicalText());
+        } else {
+            if (alreadyExist(node)) {
+                return null;
+            } else {
+                // 转换node
+                ParentTree newNode = node.getSonList().computeIfAbsent(type.getCanonicalText(),
+                    a -> {
+                        ParentTree parentTree1 = new ParentTree(a);
+                        parentTree1.setParent(node);
+                        return parentTree1;
+                    });
+                node = newNode;
+            }
+        }
+        level = ++level;
         try {
             level = ++level;
 
@@ -295,8 +312,21 @@ public class JsonFileGenerator {
         return presentableText.contains("<");
     }
 
-    public static boolean isGeneric(PsiType type) {
+     public static boolean isGeneric(String presentableText) {
+        return presentableText.contains("<");
+    }
 
+    public static boolean alreadyExist(ParentTree node) {
+        if (node == null) {
+            return false;
+        }
+        String name = node.getValue();
+        while (node.getParent() != null) {
+            node = node.getParent();
+            if (name.equals(node.getValue())) {
+                return true;
+            }
+        }
         return false;
     }
 }
