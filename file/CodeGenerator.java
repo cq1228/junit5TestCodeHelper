@@ -24,7 +24,7 @@ import static com.cq.common.MockitoConstants.COMMON_ANNOTATION;
 import static com.cq.common.MockitoConstants.COMMON_IMPORT;
 
 /**
- * @author chenqiong
+ * @author 有尘
  * @date 2021/9/28
  */
 @Data
