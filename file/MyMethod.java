@@ -18,6 +18,7 @@ import com.cq.common.MutiValuesWithClass;
 import com.cq.valuegenerator.ValueContext;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.psi.PsiArrayType;
+import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiParameterList;
@@ -86,17 +87,39 @@ public class MyMethod {
         int index = filePath.indexOf("java");
         filePath = filePath.substring(index + 5).replace(".java", "");
         String fileName = FileUtils.getJsonFileName(methodNameCount);
-        this.text = String.format("\t@ParameterizedTest\n"
-                + "\t@JsonFileSource(resources = {\"/%s/%s\"})\n"
-                + " \tpublic void %sTest(JSONObject arg) {\n%s\t}\n\n", filePath, fileName, methodNameCount,
-            methodContent);
+        this.text = generateText(filePath, fileName, methodNameCount, methodContent);
+    }
+
+    /**
+     * 生成方法内容
+     *
+     * @param filePath
+     * @param fileName
+     * @param methodNameCount
+     * @param methodContent
+     * @return
+     */
+    private String generateText(String filePath, String fileName, String methodNameCount, String methodContent) {
+        if (ValueContext.isJsonFileSource()) {
+            return String.format("\t@ParameterizedTest\n"
+                    + "\t@JsonFileSource(resources = {\"/%s/%s\"})\n"
+                    + " \tpublic void %sTest(JSONObject arg) {\n%s\t}\n\n", filePath, fileName, methodNameCount,
+                methodContent);
+        } else {
+            return "\t@ParameterizedTest\n" +
+                String.format("\t@ValueSource(strings = {\"/%s/%s\"})\n"
+                        + " \tpublic vaoid %sTest(String str) {\n\t\tJSONObject arg= TestUtils.getTestArg(str);\n"
+                        + "%s\t}\n\n", filePath, fileName, methodNameCount,
+                    methodContent);
+        }
     }
 
     /**
      * 生成方法内容，并且生成需要的测试数据
      * 每一个方法生成一个大的 json对象
      *
-     * @param method psimethod
+     * @param method 测试方法
+     * @param fileName 数据文件名称，每一个方法对应一个文件名
      * @return
      */
     private String generateMethodContent(PsiMethod method, String fileName) {
@@ -171,7 +194,7 @@ public class MyMethod {
     }
 
     /**
-     * 生成mock对象对应的mock方法
+     * 生成mock对象对应的mock方法,从方法体找到所有mock对象的用到的方法
      *
      * @param method
      * @param fields
@@ -187,27 +210,27 @@ public class MyMethod {
         String body = CodeUtils.getBody(method, collect);
         for (int i = 0; i < codeGenerator.getNeedMockFields().size(); i++) {
             PsiField field = codeGenerator.getNeedMockFields().get(i);
-            Set<String> alreadyMokcMethods = new HashSet<>();
+            Set<String> alreadyMockMethods = new HashSet<>();
             Pattern pattern = Pattern.compile(field.getName() + ".\\w+\\(.*\\)");
             Matcher matcher = pattern.matcher(body);
-
+            String filedCanonicalName = field.getType().getCanonicalText();
             while (matcher.find()) {
                 String methodName = matcher.group();
                 methodName = CodeUtils.getStringOnlyBlock(methodName, field.getName());
                 String methodShortName = methodName.substring(methodName.indexOf('.') + 1, methodName.indexOf('('));
 
-                String methodKey = field.getType().getCanonicalText() + methodShortName + CodeUtils.getCount(methodName,
+                String methodKey = filedCanonicalName + methodShortName + CodeUtils.getCount(methodName,
                     ",");
-                System.out.println(methodKey);
-                if (alreadyMokcMethods.contains(methodKey)) {
+                System.out.println("methodKey:" + methodKey);
+                if (alreadyMockMethods.contains(methodKey)) {
                     continue;
                 } else {
-                    alreadyMokcMethods.add(methodKey);
+                    alreadyMockMethods.add(methodKey);
                     // 找到方法
                     PsiMethod fieldMethod = valueContext.getMethod(methodKey);
                     if (fieldMethod == null) {
                         throw new RuntimeException(
-                            "方法太复杂，无法解析该方法：" + field.getType().getCanonicalText() + "." + methodShortName);
+                            "方法太复杂，无法解析该方法：: " + methodKey);
                     }
                     PsiType returnType = fieldMethod.getReturnType();
                     String fieldMethodReturnType = getImport(returnType);
@@ -261,15 +284,13 @@ public class MyMethod {
             String shortName = type.getPresentableText();
             MutiValuesWithClass value = a.getValue();
             value.getNames().stream().forEach(name -> {
+                PsiClass psiClass = PsiUtil.resolveClassInClassTypeOnly(type);
                 if (CodeUtils.isPrimitiveType(type)) {
                     jsonObjectBuilder.append(String.format("\t\t%s %s = arg.get%s(\"%s\"); \n",
                         shortName, name, getPrimitiveTypeStr(type),
                         shortName));
-                } else if (PsiUtil.resolveClassInClassTypeOnly(type).isEnum()) {
-                    jsonObjectBuilder.append(String.format("\t\t%s %s = %s.values()[0]; \n",
-                        shortName, name, shortName));
                 } else if (isCollection(type)) {
-                    PsiType deepComponentType = PsiUtil.extractIterableTypeParameter(type, false);
+                    PsiType deepComponentType = CodeUtils.getCollectionType(type);
                     jsonObjectBuilder.append(
                         String.format("\t\t%s %s = JSONObject.parseArray(arg.getString(\"%s\"),%s.class); \n",
                             shortName, name,
@@ -279,6 +300,9 @@ public class MyMethod {
                         String.format(
                             "\t\t%s %s = JSONObject.parseObject(arg.getString(\"%s\"),new TypeReference<%s>(){}); \n",
                             shortName, name, shortName, shortName));
+                } else if (psiClass != null && psiClass.isEnum()) {
+                    jsonObjectBuilder.append(String.format("\t\t%s %s = %s.values()[0]; \n",
+                        shortName, name, shortName));
                 } else {
                     //  todo 增加泛型
                     jsonObjectBuilder.append(
@@ -302,7 +326,7 @@ public class MyMethod {
         String fileName = FileUtils.getJsonFileName(methodName);
         Map<String, Object> collect = fields.entrySet().stream().collect(
             Collectors.toMap(a -> a.getKey().getPresentableText(), a -> {
-                    if (a.getValue() != null&&a.getValue().getObject()!=null) {
+                    if (a.getValue() != null && a.getValue().getObject() != null) {
                         return a.getValue().getObject();
                     } else { return ""; }
                 }
@@ -350,10 +374,11 @@ public class MyMethod {
     private String getImport(PsiType returnType) {
         String fieldMethodReturnType = returnType.getPresentableText();
         if (isCollection(returnType)) {
-
-            PsiType deepComponentType = PsiUtil.extractIterableTypeParameter(returnType, false);
-            fieldMethodReturnType = deepComponentType.getPresentableText() + "List";
-            needImports.add(String.format("import %s;\n", deepComponentType.getCanonicalText()));
+            PsiType deepComponentType = CodeUtils.getCollectionType(returnType);
+            if (deepComponentType != null) {
+                fieldMethodReturnType = deepComponentType.getPresentableText() + "List";
+                needImports.add(String.format("import %s;\n", deepComponentType.getCanonicalText()));
+            }
         } else if ((returnType instanceof PsiArrayType) && !CodeUtils.isPrimitiveType(
             returnType.getDeepComponentType())) {
             needImports.add(
