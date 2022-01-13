@@ -46,4 +46,25 @@ public class MockitoConstants {
         add("float");
         add("boolean");
     }};
+    
+    public static String TEST_UTILS_CLASS = "package com.util;\n"
+        + "\n"
+        + "import java.io.BufferedReader;\n"
+        + "import java.io.InputStreamReader;\n"
+        + "\n"
+        + "import com.alibaba.fastjson.JSONObject;\n"
+        + "import com.alibaba.fastjson.JSONReader;\n"
+        + "\n"
+        + "/**\n"
+        + " * @author 有尘\n"
+        + " * @date 2021/11/29\n"
+        + " */\n"
+        + "public class TestUtils {\n"
+        + "    public static JSONObject getTestArg(String path) {\n"
+        + "        String s = new JSONReader(\n"
+        + "            new BufferedReader(new InputStreamReader(TestUtils.class.getResourceAsStream(path))))\n"
+        + "            .readString();\n"
+        + "        return JSONObject.parseObject(s);\n"
+        + "    }\n"
+        + "}";
 }
