@@ -12,9 +12,13 @@ import com.cq.common.CodeUtils;
 import com.cq.common.MockitoConstants;
 import com.cq.valuegenerator.ValueContext;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiJavaFile;
+import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.util.PsiUtil;
 import lombok.Data;
@@ -67,11 +71,10 @@ public class CodeGenerator {
         this.psiClass = psiClass;
         this.needMockMethods = needMockMethods.stream().map(a -> new MyMethod(a, this)).collect(Collectors.toList());
         // todo 有一些小问题，比如不需要mock的fields
-        List<PsiField> collect = Arrays.stream(this.psiClass.getAllFields()).filter(a ->
-            a.getAnnotation("org.springframework.beans.factory.annotation.Autowired") != null
-                || a.getAnnotation("javax.annotation.Resource") != null
-        ).collect(Collectors.toList());
-        this.needMockFields = collect;
+        VirtualFile virtualFile = LocalFileSystem.getInstance().findFileByIoFile(ValueContext.getPath().toFile());
+        PsiJavaFile file = (PsiJavaFile)PsiManager.getInstance(ValueContext.getEvent().getProject()).findFile(virtualFile);
+        PsiClass aClass = file.getClasses()[0];
+        this.needMockFields = Arrays.asList(aClass.getAllFields());
         this.psiFile = psiFile;
     }
 
