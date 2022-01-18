@@ -2,6 +2,7 @@ package com.cq.common;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
@@ -16,6 +17,8 @@ import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiPrimitiveType;
 import com.intellij.psi.PsiStatement;
 import com.intellij.psi.PsiType;
+import com.intellij.psi.impl.source.PsiClassReferenceType;
+import com.intellij.psi.util.PsiUtil;
 
 /**
  * @author 有尘
@@ -63,7 +66,20 @@ public class CodeUtils {
         }
         return canonicalText;
     }
-
+    public static PsiType getCollectionType(PsiType type){
+        PsiType deepComponentType = PsiUtil.extractIterableTypeParameter(type, false);
+        if (deepComponentType==null){
+            // 集合泛型
+            System.out.println("deepComponentType is null"+type.getCanonicalText());
+            if(type instanceof PsiClassReferenceType) {
+                PsiClassReferenceType referenceType = (PsiClassReferenceType)type;
+                if("List".equals(referenceType.getName())) {
+                    return referenceType.getParameters()[0];
+                }
+            }
+        }
+        return deepComponentType;
+    }
     public static String getBody(PsiMethod method, Map<PsiMethod, Boolean> codeBlockMap) {
         PsiCodeBlock body = method.getBody();
         if(body==null){
@@ -107,10 +123,14 @@ public class CodeUtils {
         return "\n" + sb.toString();
     }
 
+    /**
+     * 获取方法名（方法名+参数个数）
+     * 参数中可能存在方法调用
+     * @param line
+     * @param name
+     * @return
+     */
     public static String getStringOnlyBlock(String line, String name) {
-        System.out.println("line:" + line);
-        System.out.println("name:" + name);
-
         line = line.replaceAll("\\{.*}", "");
         Stack<Character> stack = new Stack<>();
         int count = -1;
@@ -142,6 +162,25 @@ public class CodeUtils {
             sb.append(stack.pop());
         }
         return sb.reverse().toString();
+    }
+
+    public static boolean isCollection(PsiType type){
+
+        // 父类类型
+        PsiType[] types = type.getSuperTypes();
+        List<String> fieldTypeNames= Arrays.stream(types).map(PsiType::getPresentableText).collect(Collectors.toList());
+        //集合类，或迭代器类
+        if (fieldTypeNames.stream().anyMatch(s -> s.startsWith("Collection") || s.startsWith("Iterable"))) {
+            return true;
+        }
+        // 集合泛型
+        if(type instanceof PsiClassReferenceType) {
+            PsiClassReferenceType referenceType = (PsiClassReferenceType)type;
+            if("List".equals(referenceType.getName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }
