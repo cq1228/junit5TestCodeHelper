@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.cq.common.CodeUtils;
+import com.cq.model.ParentTree;
 import com.cq.valuegenerator.JsonValueService;
 import com.cq.valuegenerator.impl.BooleanGenerator;
 import com.cq.valuegenerator.impl.ByteGenerator;
@@ -22,7 +24,6 @@ import com.google.common.collect.Maps;
 import com.intellij.psi.PsiAnnotation;
 import com.intellij.psi.PsiArrayType;
 import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiClassType;
 import com.intellij.psi.PsiEnumConstant;
 import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiPrimitiveType;
@@ -32,6 +33,8 @@ import com.intellij.psi.impl.source.PsiClassReferenceType;
 import com.intellij.psi.util.PsiUtil;
 import org.apache.commons.lang.StringUtils;
 
+import static com.cq.common.CodeUtils.isCollection;
+
 /**
  * @author 有尘
  * @date 2021/9/28
@@ -39,6 +42,8 @@ import org.apache.commons.lang.StringUtils;
 public class JsonFileGenerator {
 
     private final static Map<String, JsonValueService> normalTypes = new HashMap<>();
+
+    private static ParentTree node;
 
     static {
         //Fake fakeDecimal = new FakeDecimal();
@@ -98,14 +103,13 @@ public class JsonFileGenerator {
         }
         level = ++level;
         try {
-            level = ++level;
-
             /**
              * 原始类型
              */
             if (type instanceof PsiPrimitiveType) {
                 return normalTypes.get(getPackageType(type)).defaultValue();
             }
+
             /**
              * 数组类型
              */
@@ -117,18 +121,29 @@ public class JsonFileGenerator {
                 return list;
             }
 
+            List<String> fieldTypeNames = new ArrayList<>();
+
+            fieldTypeNames.add(type.getPresentableText());
+            // 父类类型
+            PsiType[] types = type.getSuperTypes();
+            fieldTypeNames.addAll(Arrays.stream(types).map(PsiType::getPresentableText).collect(Collectors.toList()));
+
+            //集合类，或迭代器类
+            if (isCollection(type)) {
+                List<Object> list = new ArrayList<>();
+                PsiType deepType = CodeUtils.getCollectionType(type);
+                System.out.println("json deepType:"+deepType.getCanonicalText());
+                list.add(typeResolve(deepType, level));
+                return list;
+            }
             Map<String, Object> map = new LinkedHashMap<>();
 
             PsiClass psiClass = PsiUtil.resolveClassInClassTypeOnly(type);
 
-            if (psiClass == null) {
-                return map;
-            }
-
             /**
              * 枚举类型
              */
-            if (psiClass.isEnum()) {
+            if (psiClass != null && psiClass.isEnum()) {
                 for (PsiField field : psiClass.getFields()) {
                     if (field instanceof PsiEnumConstant) {
                         return field.getName();
@@ -139,33 +154,18 @@ public class JsonFileGenerator {
             }
             // 其他Object类型
 
-            List<String> fieldTypeNames = new ArrayList<>();
-
-            fieldTypeNames.add(type.getPresentableText());
-            // 父类类型
-            PsiType[] types = type.getSuperTypes();
-            fieldTypeNames.addAll(Arrays.stream(types).map(PsiType::getPresentableText).collect(Collectors.toList()));
-
-            //集合类，或迭代器类
-            if (fieldTypeNames.stream().anyMatch(s -> s.startsWith("Collection") || s.startsWith("Iterable"))) {
-                List<Object> list = new ArrayList<>();
-                PsiType deepType = PsiUtil.extractIterableTypeParameter(type, false);
-                list.add(typeResolve(deepType, level));
-                return list;
-            }
-
             //todo map类型
             if (fieldTypeNames.stream().anyMatch(s -> s.startsWith("Map"))) {
                 HashMap<Object, Object> objectHashMap = Maps.newHashMap();
                 PsiType[] parameters = ((PsiClassReferenceType)type).getParameters();
                 if (parameters.length >= 2) {
-                    objectHashMap.put(typeResolve(parameters[0], level), typeResolve(parameters[1], level));
+                    objectHashMap.put(typeResolve(parameters[0], level).toString(), typeResolve(parameters[1], level));
                 }
                 return objectHashMap;
             }
 
             // Class类型
-            if(fieldTypeNames.stream().anyMatch(s->s.startsWith("Class"))){
+            if (fieldTypeNames.stream().anyMatch(s -> s.startsWith("Class"))) {
                 return null;
             }
 
@@ -179,7 +179,9 @@ public class JsonFileGenerator {
                     throw new RuntimeException(
                         "This class reference level exceeds maximum limit or has nested references!");
                 }
-
+                if(psiClass==null){
+                    return map;
+                }
                 for (PsiField field : psiClass.getAllFields()) {
                     // 静态变量无需配置
                     if (field.hasModifierProperty("static")) {
@@ -210,6 +212,8 @@ public class JsonFileGenerator {
             }
         } catch (Exception e) {
             return null;
+        } finally {
+            node = node.getParent();
         }
 
     }
@@ -301,18 +305,8 @@ public class JsonFileGenerator {
         }
     }
 
-    public static boolean isCollection(PsiType type) {
-        PsiType[] types = type.getSuperTypes();
-        List<String> collect = Arrays.stream(types).map(PsiType::getPresentableText).collect(Collectors.toList());
-        //集合类，或迭代器类
-        return collect.stream().anyMatch(s -> s.startsWith("Collection") || s.startsWith("Iterable"));
-    }
 
     public static boolean isGeneric(String presentableText) {
-        return presentableText.contains("<");
-    }
-
-     public static boolean isGeneric(String presentableText) {
         return presentableText.contains("<");
     }
 
