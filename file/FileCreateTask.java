@@ -41,11 +41,12 @@ public class FileCreateTask implements Runnable {
                 Files.createDirectories(path);
             }
             Files.write(Paths.get(this.path, name), content.getBytes());
-            VirtualFile virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByPath(
-                Paths.get(this.path, name).toString());
+            
 
             if (name.endsWith(".java")&&!name.contains("TestUtil")) {
                 Project project = ValueContext.getEvent().getProject();
+                VirtualFile virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByPath(
+                Paths.get(this.path, name).toString());
                 new OpenFileDescriptor(project, virtualFile).navigate(true);
                 PsiFile file = PsiManager.getInstance(ValueContext.getEvent().getProject()).findFile(virtualFile);
                 CodeStyleManager.getInstance(ValueContext.event.getProject()).reformat(file);
