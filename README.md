@@ -1,1 +1,3 @@
-# junit5TestCodeHelper
+# 单元测试自动生成插件
+
+这个人很懒
