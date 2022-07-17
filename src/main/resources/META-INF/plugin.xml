@@ -1,0 +1,54 @@
+<idea-plugin>
+    <id>github.com.cq1228.JCode5</id>
+    <name>JCode5</name>
+    <version>1.0.2</version>
+    <vendor email="1067747645@163.com" url="http://www.daodaoplay.cn">刀刀</vendor>
+
+    <description><![CDATA[
+     Functions(English)：
+     <ul>
+        <li>1. Automatically generate test code, reducing the time spent manually creating and mocking</li>
+        <li>2. Add test methods</li>
+        <li>3. Can generate json mock data automatically</li>
+      </ul>
+      <br>
+      dependency：Junit5、mockito、fastjson<br>
+      <br>
+      TODO: random value、branch hit ..etc<br>
+      <em></em>
+
+     功能（中文）：
+     <ul>
+        <li>1. 自动生成测试代码，减少手动创建和mock的时间</li>
+        <li>2. 增加测试方法</li>
+        <li>3. 可自动生成json模拟数据</li>
+      </ul>
+      <br>
+    ]]></description>
+
+
+    <change-notes>
+        First Version
+        support 182
+        &lt;/em&gt;</change-notes>
+
+    <idea-version since-build="182.0"/>
+
+    <depends>com.intellij.modules.java</depends>
+
+
+    <extensions defaultExtensionNs="com.intellij">
+    </extensions>
+
+    <actions>
+        <!-- Add your actions here -->
+        <group id="github.com.cq1228.CodeGroup"
+               text="JCode5"
+               popup="true"
+               description="Java Unit Test Code Generator"
+               class="com.cq.CodeGroupTest">
+            <add-to-group group-id="GenerateGroup" anchor="after"  relative-to-action="JavaGenerateGroup2"/>
+        </group>
+    </actions>
+
+</idea-plugin>

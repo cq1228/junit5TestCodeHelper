@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+    id 'org.jetbrains.intellij' version '0.7.3'
+}
+
+group 'com.cq.jcode5'
+version '1.0.3'
+
+repositories {
+    mavenCentral()
+}
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+    compileOnly 'org.projectlombok:lombok:1.18.8'
+    annotationProcessor 'org.projectlombok:lombok:1.18.8'
+    compile group: 'commons-io',name: 'commons-io',version: '2.5'
+    compile group: 'com.alibaba',name: 'fastjson',version: '1.2.62'
+    compile group: 'com.github.javafaker',name: 'javafaker',version: '1.0.2'
+    compile group: 'org.jeasy',name: 'easy-random-core',version: '4.3.0'
+}
+
+// See https://github.com/JetBrains/gradle-intellij-plugin/
+intellij {
+    version '2019.2.2'
+    updateSinceUntilBuild false
+    localPath = "C:\\Users\\chenq\\.gradle\\caches\\modules-2\\files-2.1\\com.jetbrains.intellij.idea\\ideaIC\\2019.2.2\\675ec4f0f2c5a3507f7308d8fd7d83b6d2a337c7"
+    plugins=['java']
+}
+patchPluginXml {
+    changeNotes """
+      First Version<br>
+      """
+}
+
+test {
+    useJUnitPlatform()
+}
